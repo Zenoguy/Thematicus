@@ -73,7 +73,8 @@ export default function SetupPanel({ onComplete }) {
             style={{ cursor: 'pointer' }}
           >
             <option value="llama-3.3-70b-versatile">Llama 3.3 70B Versatile (Recommended, High Quality)</option>
-            <option value="llama3-8b-8192">Llama 3 8B (Fast mode, lower reasoning)</option>
+            <option value="llama-3.1-8b-instant">Llama 3.1 8B Instant (Fast mode, lower reasoning)</option>
+            <option value="qwen/qwen3-32b">Qwen 3 32B (Alternative)</option>
           </select>
         </div>
 

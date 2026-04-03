@@ -102,6 +102,10 @@ export async function processDocumentPhase3({ apiKey, model, document, currentCo
     userPrompt: `Document: ${document.name}\nText:\n${document.text}`
   });
 
+  console.log(`=== THEMATICUS DEBUG: RAW LLM RESPONSE (PHASE 3 - DOC ${document.name}) ===`);
+  console.log(rawResponse);
+  console.log("========================================================================");
+
   let parsed = normalizeAndParse(rawResponse);
 
   if (!parsed.success) {
@@ -115,7 +119,7 @@ export async function processDocumentPhase3({ apiKey, model, document, currentCo
     });
     parsed = normalizeAndParse(retryRaw);
     if (!parsed.success) {
-      throw new Error(`Failed to parse analysis for ${document.name}. LLM output malformed.`);
+      throw new Error(`Parse failed for ${document.name}. RAW OUTPUT: ${retryRaw.substring(0, 1000)}...`);
     }
   }
 
@@ -154,6 +158,10 @@ export async function generateFinalReport({ apiKey, model, masterData }) {
     systemPrompt: systemPrompt,
     userPrompt: "Generate the markdown thematic analysis report."
   });
+
+  console.log("=== THEMATICUS DEBUG: RAW LLM RESPONSE (PHASE 5) ===");
+  console.log(rawResponse);
+  console.log("====================================================");
 
   return rawResponse.trim();
 }
