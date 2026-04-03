@@ -1,7 +1,11 @@
 import React, { useReducer } from 'react';
 import PhaseStepper from './components/PhaseStepper';
 import SetupPanel from './components/SetupPanel';
-
+import InputPanel from './components/InputPanel';
+import ReviewGate from './components/ReviewGate';
+import AnalysisPanel from './components/AnalysisPanel';
+import Visualizer from './components/Visualizer';
+import ReportPanel from './components/ReportPanel';
 // App State Reducer
 const initialState = {
   phase: 0,
@@ -25,6 +29,30 @@ function reducer(state, action) {
         model: action.payload.model,
         phase: 1 
       };
+    case 'INPUT_COMPLETE':
+      return {
+        ...state,
+        documents: action.payload.documents,
+        themes: action.payload.themes,
+        phase: 2
+      };
+    case 'CODEBOOK_CONFIRMED':
+      return {
+        ...state,
+        codebook: action.payload,
+        phase: 3
+      };
+    case 'ANALYSIS_COMPLETE':
+      return {
+        ...state,
+        masterData: action.payload,
+        phase: 4
+      };
+    case 'PROCEED_REPORT':
+      return {
+        ...state,
+        phase: 5
+      };
     case 'SET_PHASE':
       return { ...state, phase: action.payload };
     default:
@@ -37,6 +65,22 @@ function App() {
 
   const handleSetupComplete = (config) => {
     dispatch({ type: 'SETUP_COMPLETE', payload: config });
+  };
+
+  const handleInputComplete = (data) => {
+    dispatch({ type: 'INPUT_COMPLETE', payload: data });
+  };
+
+  const handleCodebookConfirmed = (finalCodebook) => {
+    dispatch({ type: 'CODEBOOK_CONFIRMED', payload: finalCodebook });
+  };
+
+  const handleAnalysisComplete = (masterData) => {
+    dispatch({ type: 'ANALYSIS_COMPLETE', payload: masterData });
+  };
+
+  const handleProceedReport = () => {
+    dispatch({ type: 'PROCEED_REPORT' });
   };
 
   return (
@@ -55,18 +99,34 @@ function App() {
       {/* Router (Phase Panels) */}
       <div style={{ position: 'relative' }}>
         {state.phase === 0 && <SetupPanel onComplete={handleSetupComplete} />}
-        {state.phase === 1 && (
-          <div className="glass-panel fade-in" style={{ padding: '3rem', textAlign: 'center' }}>
-            <h2 style={{marginTop: 0}}>Phase 1: Input</h2>
-            <p style={{color: 'var(--text-muted)'}}>Placeholder for InputPanel</p>
-            <button className="button" onClick={() => dispatch({ type: 'SET_PHASE', payload: 2 })}>Skip to Phase 2</button>
-          </div>
-        )}
+        {state.phase === 1 && <InputPanel onComplete={handleInputComplete} />}
         {state.phase === 2 && (
-          <div className="glass-panel fade-in" style={{ padding: '3rem', textAlign: 'center' }}>
-            <h2 style={{marginTop: 0}}>Phase 2: Review Gate</h2>
-            <p style={{color: 'var(--text-muted)'}}>Placeholder for ReviewGate</p>
-          </div>
+          <ReviewGate 
+            config={{ apiKey: state.apiKey, model: state.model }}
+            documents={state.documents}
+            themes={state.themes}
+            onComplete={handleCodebookConfirmed}
+          />
+        )}
+        {state.phase === 3 && (
+          <AnalysisPanel 
+            config={{ apiKey: state.apiKey, model: state.model }}
+            documents={state.documents}
+            initialCodebook={state.codebook}
+            onComplete={handleAnalysisComplete}
+          />
+        )}
+        {state.phase === 4 && (
+          <Visualizer 
+            masterData={state.masterData}
+            onNext={handleProceedReport}
+          />
+        )}
+        {state.phase === 5 && (
+          <ReportPanel 
+            config={{ apiKey: state.apiKey, model: state.model }}
+            masterData={state.masterData}
+          />
         )}
       </div>
 
