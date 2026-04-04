@@ -9,6 +9,7 @@ import ReportPanel from './components/ReportPanel';
 // App State Reducer
 const initialState = {
   phase: 0,
+  maxPhaseReached: 0,
   apiKey: '',
   model: 'llama-3.3-70b-versatile',
   documents: [],
@@ -27,31 +28,36 @@ function reducer(state, action) {
         ...state, 
         apiKey: action.payload.apiKey, 
         model: action.payload.model,
-        phase: 1 
+        phase: 1,
+        maxPhaseReached: Math.max(state.maxPhaseReached, 1)
       };
     case 'INPUT_COMPLETE':
       return {
         ...state,
         documents: action.payload.documents,
         themes: action.payload.themes,
-        phase: 2
+        phase: 2,
+        maxPhaseReached: Math.max(state.maxPhaseReached, 2)
       };
     case 'CODEBOOK_CONFIRMED':
       return {
         ...state,
         codebook: action.payload,
-        phase: 3
+        phase: 3,
+        maxPhaseReached: Math.max(state.maxPhaseReached, 3)
       };
     case 'ANALYSIS_COMPLETE':
       return {
         ...state,
         masterData: action.payload,
-        phase: 4
+        phase: 4,
+        maxPhaseReached: Math.max(state.maxPhaseReached, 4)
       };
     case 'PROCEED_REPORT':
       return {
         ...state,
-        phase: 5
+        phase: 5,
+        maxPhaseReached: Math.max(state.maxPhaseReached, 5)
       };
     case 'SET_PHASE':
       return { ...state, phase: action.payload };
@@ -94,7 +100,11 @@ function App() {
       </div>
 
       {/* Stepper */}
-      <PhaseStepper activePhase={state.phase} />
+      <PhaseStepper 
+        activePhase={state.phase} 
+        maxPhaseReached={state.maxPhaseReached}
+        onPhaseClick={(p) => dispatch({ type: 'SET_PHASE', payload: p })}
+      />
 
       {/* Router (Phase Panels) */}
       <div style={{ position: 'relative' }}>
@@ -102,17 +112,21 @@ function App() {
         {state.phase === 1 && <InputPanel onComplete={handleInputComplete} />}
         {state.phase === 2 && (
           <ReviewGate 
-            config={{ apiKey: state.apiKey, model: state.model }}
+            apiKey={state.apiKey}
+            model={state.model}
             documents={state.documents}
             themes={state.themes}
+            initialCodebook={state.codebook}
             onComplete={handleCodebookConfirmed}
           />
         )}
         {state.phase === 3 && (
           <AnalysisPanel 
-            config={{ apiKey: state.apiKey, model: state.model }}
+            apiKey={state.apiKey}
+            model={state.model}
             documents={state.documents}
             initialCodebook={state.codebook}
+            existingData={state.masterData}
             onComplete={handleAnalysisComplete}
           />
         )}
@@ -124,7 +138,8 @@ function App() {
         )}
         {state.phase === 5 && (
           <ReportPanel 
-            config={{ apiKey: state.apiKey, model: state.model }}
+            apiKey={state.apiKey}
+            model={state.model}
             masterData={state.masterData}
           />
         )}

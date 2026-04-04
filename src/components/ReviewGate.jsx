@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { generateInitialCodebook } from '../engine/pipeline';
 import { Check, X, Edit2, GitMerge, Loader2, Save } from 'lucide-react';
 
-export default function ReviewGate({ config, documents, themes, onComplete }) {
-  const [loading, setLoading] = useState(true);
+export default function ReviewGate({ apiKey, model, documents, themes, initialCodebook, onComplete }) {
+  const [loading, setLoading] = useState(!initialCodebook);
   const [error, setError] = useState(null);
-  const [codebook, setCodebook] = useState(null);
+  const [codebook, setCodebook] = useState(initialCodebook || null);
 
   // Merge state tracking
   const [mergeSelection, setMergeSelection] = useState([]); // array of subcode IDs
@@ -13,32 +13,32 @@ export default function ReviewGate({ config, documents, themes, onComplete }) {
   const [showMergeModal, setShowMergeModal] = useState(false);
   const [mergeLabel, setMergeLabel] = useState('');
   const [mergeDefinition, setMergeDefinition] = useState('');
+  const hasStarted = React.useRef(false);
 
   useEffect(() => {
-    let mounted = true;
+    if (initialCodebook || hasStarted.current) return;
+    hasStarted.current = true;
+
     const runGeneration = async () => {
+      console.log("[ReviewGate] starting generation...");
       try {
         const result = await generateInitialCodebook({
-          apiKey: config.apiKey,
-          model: config.model,
-          themes: themes,
-          documents: documents
+          apiKey,
+          model,
+          themes,
+          documents
         });
-        if (mounted) {
-          setCodebook(result);
-          setLoading(false);
-        }
+        console.log("[ReviewGate] results received, updating state...");
+        setCodebook(result);
+        setLoading(false);
       } catch (err) {
-        if (mounted) {
-          console.error(err);
-          setError(err.message || 'Failed to generate codebook.');
-          setLoading(false);
-        }
+        console.error("[ReviewGate] error:", err);
+        setError(err.message || 'Failed to generate codebook.');
+        setLoading(false);
       }
     };
     runGeneration();
-    return () => { mounted = false; };
-  }, [config, documents, themes]);
+  }, [apiKey, model, documents, themes]);
 
   const handleToggleMerge = (themeId, subCodeId) => {
     if (mergeParentId && mergeParentId !== themeId) {

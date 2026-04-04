@@ -6,14 +6,16 @@
 export function normalizeAndParse(rawString) {
   let cleaned = rawString.trim();
 
-  // Strip markdown formatting if the LLM output fenced code blocks
-  if (cleaned.startsWith('```')) {
-    cleaned = cleaned.replace(/^```[a-z]*\s*/i, '');
-    cleaned = cleaned.replace(/\s*```$/, '');
+  // Try to find the first '{' and last '}' to extract the JSON object
+  const firstBrace = cleaned.indexOf('{');
+  const lastBrace = cleaned.lastIndexOf('}');
+  
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    cleaned = cleaned.substring(firstBrace, lastBrace + 1);
   }
 
-  // Basic cleanup
-  cleaned = cleaned.trim();
+  // Basic cleanup for markdown remains if not caught by braces
+  cleaned = cleaned.replace(/^```[a-z]*\s*/i, '').replace(/\s*```$/, '').trim();
 
   try {
     const data = JSON.parse(cleaned);

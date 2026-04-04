@@ -36,6 +36,10 @@ export async function callGroq({ apiKey, model, systemPrompt, userPrompt }) {
       if (res.status === 429) {
         throw { status: 429, message: "Rate limit exceeded" };
       }
+      if (res.status === 413) {
+        // Groq sometimes returns 413 for TPM limits, treat as retryable
+        throw { status: 413, message: "Payload too large or TPM limit reached" };
+      }
       if (res.status >= 500) {
         throw { status: res.status, message: `Server error: ${res.statusText}` };
       }
@@ -49,35 +53,36 @@ export async function callGroq({ apiKey, model, systemPrompt, userPrompt }) {
 
   // === Retry Strategy ===
   let attempts = 0;
-  const max429Retries = 4;
-  const backoffSchedule = [5000, 10000, 20000, 40000]; // 5s, 10s, 20s, 40s
+  const max429Retries = 6;
+  // More aggressive backoff for tight limits: 5s, 15s, 30s, 60s, 90s, 120s
+  const backoffSchedule = [5000, 15000, 30000, 60000, 90000, 120000]; 
   
   let has500Retried = false;
 
   while (true) {
     try {
-      // Impose a baseline minimum 2s delay between sequential calls locally
-      await sleep(2000); 
+      // Impose a baseline minimum 3s delay between sequential calls to stay under bursting limits
+      await sleep(3000); 
       const result = await performRequest();
       return result;
 
     } catch (err) {
-      if (err.status === 429) {
+      if (err.status === 429 || err.status === 413) {
         if (attempts < max429Retries) {
           const waitTime = backoffSchedule[attempts];
-          console.warn(`Groq 429 Rate Limit. Retrying in ${waitTime/1000}s...`);
+          console.warn(`Groq API Limit (${err.status}). Retry ${attempts + 1}/${max429Retries} in ${waitTime/1000}s...`);
           await sleep(waitTime);
           attempts++;
           continue;
         } else {
-          throw new Error("Groq API rate limit exceeded. Max retries exhausted.");
+          throw new Error(`Groq API limit exceeded (${err.status}). Max retries exhausted. Please reduce inputs or upgrade your tier.`);
         }
       }
 
       if (err.status >= 500 && !has500Retried) {
-        console.warn(`Groq 500 Server Error. Retrying once after 3s...`);
+        console.warn(`Groq 500 Server Error. Retrying once after 5s...`);
         has500Retried = true;
-        await sleep(3000);
+        await sleep(5000);
         continue;
       }
 

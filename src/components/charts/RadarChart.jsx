@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 
-export default function RadarChart({ masterData }) {
+export default function RadarChart({ masterData, onSelect }) {
   const svgRef = useRef(null);
 
   useEffect(() => {
@@ -21,10 +21,11 @@ export default function RadarChart({ masterData }) {
         }
       });
       return { 
+        id: t.id,
         axis: t.label.length > 15 ? t.label.substring(0,15)+'...' : t.label, 
         value: count === 0 ? 0 : sum / count 
       };
-    }).sort((a,b) => b.value - a.value).slice(0, 8); // Top 8 themes max
+    }).sort((a,b) => b.value - a.value).slice(0, 10); // Top 10 themes max
 
     if (themeAverages.length < 3) {
       d3.select(svgRef.current).selectAll('*').remove();
@@ -84,7 +85,9 @@ export default function RadarChart({ masterData }) {
       .attr("dy", "0.35em")
       .attr("x", (d, i) => rScale(5.8) * Math.cos(angleSlice*i - Math.PI/2))
       .attr("y", (d, i) => rScale(5.8) * Math.sin(angleSlice*i - Math.PI/2))
-      .text(d => d.axis);
+      .text(d => d.axis)
+      .style("cursor", "pointer")
+      .on("click", (event, d) => onSelect?.(d.id));
 
     // Draw Polygon
     const radarLine = d3.lineRadial()

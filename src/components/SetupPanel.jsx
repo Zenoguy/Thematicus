@@ -65,16 +65,18 @@ export default function SetupPanel({ onComplete }) {
 
         {/* Model Selection */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <label style={{ fontWeight: 500 }}>Model Selection</label>
+          <label style={{ fontWeight: 500 }}>Analysis model</label>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '-0.25rem' }}>
+            Used for theme tree building and final report. Chunk analysis uses a dedicated bulk model.
+          </p>
           <select 
             className="input" 
             value={model} 
             onChange={(e) => setModel(e.target.value)}
-            style={{ cursor: 'pointer' }}
+            style={{ cursor: 'pointer', marginTop: '0.25rem' }}
           >
             <option value="llama-3.3-70b-versatile">Llama 3.3 70B Versatile (Recommended, High Quality)</option>
             <option value="llama-3.1-8b-instant">Llama 3.1 8B Instant (Fast mode, lower reasoning)</option>
-            <option value="qwen/qwen3-32b">Qwen 3 32B (Alternative)</option>
           </select>
         </div>
 

@@ -4,13 +4,18 @@ import { mergeNewCodes } from '../engine/codebookUtils';
 import { saveToCache } from '../engine/storage';
 import { Play, Loader2, CheckCircle, Database } from 'lucide-react';
 
-export default function AnalysisPanel({ config, documents, initialCodebook, onComplete }) {
+export default function AnalysisPanel({ apiKey, model, documents, initialCodebook, existingData, onComplete }) {
   const [isProcessing, setIsProcessing] = useState(false);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [logs, setLogs] = useState([]);
-  const [currentCodebook, setCurrentCodebook] = useState(initialCodebook);
-  const [analyses, setAnalyses] = useState({});
-  const [isDone, setIsDone] = useState(false);
+  const [currentIndex, setCurrentIndex] = useState(existingData ? documents.length : 0);
+  const [logs, setLogs] = useState(existingData ? [{ 
+    time: new Date().toLocaleTimeString(), 
+    msg: 'Previous analysis results reloaded. Click Visualize to see detailed charts.', 
+    type: 'success' 
+  }] : []);
+  const [currentCodebook, setCurrentCodebook] = useState(existingData ? existingData.codebook : initialCodebook);
+  const [analyses, setAnalyses] = useState(existingData ? existingData.analyses : {});
+  const [isDone, setIsDone] = useState(!!existingData);
+  const isStarted = useRef(!!existingData);
   
   const logEndRef = useRef(null);
 
@@ -30,6 +35,8 @@ export default function AnalysisPanel({ config, documents, initialCodebook, onCo
     
     let workingCodebook = JSON.parse(JSON.stringify(currentCodebook));
     let workingAnalyses = {};
+    let consecutiveZeroAdditions = 0;
+    let saturationPoint = null;
 
     for (let i = 0; i < documents.length; i++) {
       setCurrentIndex(i);
@@ -38,10 +45,11 @@ export default function AnalysisPanel({ config, documents, initialCodebook, onCo
       
       try {
         const analysisOut = await processDocumentPhase3({
-          apiKey: config.apiKey,
-          model: config.model,
+          apiKey,
+          model,
           document: doc,
-          currentCodebook: workingCodebook
+          currentCodebook: workingCodebook,
+          onProgress: (msg) => addLog(msg)
         });
 
         // Check for partials (if LLM returned error or stopped abruptly we'd catch in pipeline, but pipeline throws)
@@ -55,6 +63,14 @@ export default function AnalysisPanel({ config, documents, initialCodebook, onCo
         if (newSubs > 0 || newEmergent > 0) {
           workingCodebook = mergeNewCodes(workingCodebook, analysisOut.new_sub_codes, analysisOut.emergent_themes, doc.name);
           setCurrentCodebook(workingCodebook);
+          consecutiveZeroAdditions = 0; // Reset on discovery
+        } else {
+          consecutiveZeroAdditions++;
+          // Detect saturation (3 docs in a row with 0 additions)
+          if (consecutiveZeroAdditions === 3 && !saturationPoint) {
+            saturationPoint = doc.name;
+            addLog(`Thematic saturation likely reached at "${doc.name}" (3 docs without new themes).`, 'success');
+          }
         }
 
         workingAnalyses[doc.name] = analysisOut;
@@ -72,9 +88,26 @@ export default function AnalysisPanel({ config, documents, initialCodebook, onCo
 
     addLog('All documents processed successfully! Aggregating master structure...', 'success');
     
+    // Enriched Aggregation for Report Writer
+    const themeMetrics = {};
+    workingCodebook.themes.forEach(t => {
+      const intensities = Object.values(workingAnalyses)
+        .map(a => a.tags?.find(tag => tag.theme_id === t.id)?.intensity || 0);
+      
+      const totalIntensity = intensities.reduce((sum, val) => sum + val, 0);
+      const avgIntensity = intensities.length > 0 ? (totalIntensity / intensities.length) : 0;
+      
+      themeMetrics[t.id] = {
+        avg_intensity: parseFloat(avgIntensity.toFixed(2)),
+        total_occurrences: intensities.filter(v => v > 0).length
+      };
+    });
+
     const masterData = {
       codebook: workingCodebook,
-      analyses: workingAnalyses
+      analyses: workingAnalyses,
+      theme_metrics: themeMetrics,
+      saturationPoint: saturationPoint
     };
     
     setIsDone(true);
@@ -99,7 +132,11 @@ export default function AnalysisPanel({ config, documents, initialCodebook, onCo
         </p>
 
         {!isProcessing && !isDone && (
-          <button className="button" style={{ fontSize: '1.1rem', padding: '1rem 3rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', marginTop: '1rem' }} onClick={startAnalysis}>
+          <button className="button" style={{ fontSize: '1.1rem', padding: '1rem 3rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', marginTop: '1rem' }} onClick={() => {
+            if (isStarted.current) return;
+            isStarted.current = true;
+            startAnalysis();
+          }}>
             <Play size={20} /> Run Pipeline
           </button>
         )}

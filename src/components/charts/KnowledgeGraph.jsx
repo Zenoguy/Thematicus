@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 
-export default function KnowledgeGraph({ masterData }) {
+export default function KnowledgeGraph({ masterData, onSelect }) {
   const svgRef = useRef(null);
 
   useEffect(() => {
@@ -67,16 +67,25 @@ export default function KnowledgeGraph({ masterData }) {
     const svg = d3.select(svgRef.current)
       .attr("viewBox", [0, 0, width, height]);
 
+    // Container for zoom/pan
+    const g = svg.append("g");
+
+    const zoom = d3.zoom()
+      .scaleExtent([0.1, 4])
+      .on("zoom", (event) => {
+        g.attr("transform", event.transform);
+      });
+
+    svg.call(zoom);
+
     // Graph Simulation
     const simulation = d3.forceSimulation(nodes)
-      .force("link", d3.forceLink(links).id(d => d.id).distance(d => d.type === 'hierarchy' ? 50 : 150))
-      .force("charge", d3.forceManyBody().strength(-200))
-      .force("center", d3.forceCenter(width / 2, height / 2))
-      .force("x", d3.forceX())
-      .force("y", d3.forceY());
+      .force("link", d3.forceLink(links).id(d => d.id).distance(d => d.type === 'hierarchy' ? 60 : 180))
+      .force("charge", d3.forceManyBody().strength(-300))
+      .force("center", d3.forceCenter(width / 2, height / 2));
 
     // Draw Links
-    const link = svg.append("g")
+    const link = g.append("g")
       .selectAll("line")
       .data(links)
       .join("line")
@@ -84,10 +93,15 @@ export default function KnowledgeGraph({ masterData }) {
       .attr("stroke-width", d => Math.sqrt(d.value))
       .attr("stroke-dasharray", d => d.type === 'hierarchy' ? "0" : "4 4");
 
-    const nodeGroup = svg.append("g")
+    const nodeGroup = g.append("g")
       .selectAll("g")
       .data(nodes)
       .join("g")
+      .style("cursor", "pointer")
+      .on("click", (event, d) => {
+        event.stopPropagation();
+        onSelect?.(d.id);
+      })
       .call(drag(simulation));
 
     // Draw Nodes

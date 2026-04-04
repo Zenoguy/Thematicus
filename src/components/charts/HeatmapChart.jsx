@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 
-export default function HeatmapChart({ masterData }) {
+export default function HeatmapChart({ masterData, onSelect }) {
   const svgRef = useRef(null);
 
   useEffect(() => {
@@ -69,6 +69,7 @@ export default function HeatmapChart({ masterData }) {
         const intensity = matchingTags.length ? Math.max(...matchingTags.map(m => m.intensity)) : 0;
         matrixData.push({
           doc,
+          themeId: tId,
           themeLabel: themeLabels[tIdx],
           intensity
         });
@@ -98,6 +99,8 @@ export default function HeatmapChart({ masterData }) {
       .style("stroke-width", 4)
       .style("stroke", "none")
       .style("opacity", 0.8)
+      .style("cursor", "pointer")
+      .on("click", (event, d) => onSelect?.(d.themeId, d.doc))
       .on("mouseover", function(event, d) {
         d3.select(this)
           .style("stroke", "var(--accent)")

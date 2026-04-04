@@ -2,35 +2,35 @@ import React, { useState, useEffect } from 'react';
 import { generateFinalReport } from '../engine/pipeline';
 import { FileText, Download, Loader2, Code, FileDown } from 'lucide-react';
 
-export default function ReportPanel({ config, masterData }) {
+export default function ReportPanel({ apiKey, model, masterData }) {
   const [report, setReport] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const hasStarted = React.useRef(false);
 
   useEffect(() => {
-    let mounted = true;
+    if (hasStarted.current) return;
+    hasStarted.current = true;
+
     const runReport = async () => {
+      console.log("[ReportPanel] starting report generation...");
       try {
         const markdown = await generateFinalReport({
-          apiKey: config.apiKey,
-          model: config.model,
+          apiKey,
+          model,
           masterData: masterData
         });
-        if (mounted) {
-          setReport(markdown);
-          setLoading(false);
-        }
+        console.log("[ReportPanel] report received, updating state...");
+        setReport(markdown);
+        setLoading(false);
       } catch (err) {
-        if (mounted) {
-          console.error(err);
-          setError(err.message || 'Failed to generate final report.');
-          setLoading(false);
-        }
+        console.error("[ReportPanel] error:", err);
+        setError(err.message || 'Failed to generate final report.');
+        setLoading(false);
       }
     };
     runReport();
-    return () => { mounted = false; };
-  }, [config, masterData]);
+  }, [apiKey, model, masterData]);
 
   const handleDownloadReport = () => {
     const blob = new Blob([report], { type: 'text/markdown' });
