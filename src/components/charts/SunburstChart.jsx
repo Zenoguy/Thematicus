@@ -47,7 +47,25 @@ export default function SunburstChart({ masterData, onSelect }) {
     const g = svg.append("g")
       .attr("transform", `translate(${width / 2},${width / 2})`);
 
-    const color = d3.scaleOrdinal(d3.quantize(d3.interpolateRainbow, rootData.children.length + 1));
+    // Dynamic Central Labels
+    const centerInfo = g.append("g")
+      .attr("pointer-events", "none")
+      .attr("text-anchor", "middle");
+
+    const centerLabel = centerInfo.append("text")
+      .attr("y", -8)
+      .style("fill", "white")
+      .style("font-weight", "600")
+      .style("font-size", "14px")
+      .text("Corpus");
+
+    const centerSub = centerInfo.append("text")
+      .attr("y", 12)
+      .style("fill", "var(--text-muted)")
+      .style("font-size", "10px")
+      .text("Click to Zoom Out");
+
+    const color = d3.scaleOrdinal(d3.quantize(d3.interpolateCool, rootData.children.length + 1));
 
     const partition = data => d3.partition()
       .size([2 * Math.PI, radius])
@@ -83,6 +101,24 @@ export default function SunburstChart({ masterData, onSelect }) {
     path.filter(d => !d.children)
       .style("cursor", "pointer")
       .on("click", (event, d) => onSelect?.(d.data.id));
+      
+    // Enhanced Hover Interactions
+    path.on("mouseover", function(event, d) {
+      d3.select(this)
+        .transition().duration(200)
+        .attr("fill-opacity", 1)
+        .style("stroke", "#fff")
+        .style("stroke-width", "2px");
+      
+      centerLabel.text(d.data.name.length > 20 ? d.data.name.substring(0, 17) + "..." : d.data.name);
+      centerSub.text(`${d.value} occurrences`);
+    })
+    .on("mouseout", function(event, d) {
+      d3.select(this)
+        .transition().duration(500)
+        .attr("fill-opacity", d => (d.children ? (d.depth > 1 ? 0.6 : 0.8) : 0.4))
+        .style("stroke", "none");
+    });
 
     const label = g.append("g")
       .attr("pointer-events", "none")
@@ -108,6 +144,10 @@ export default function SunburstChart({ masterData, onSelect }) {
       
       // Also trigger selection if it's a theme/subcode
       if (p.depth > 0) onSelect?.(p.data.id);
+      
+      // Update center labels for focus
+      centerLabel.text(p.data.name.length > 20 ? p.data.name.substring(0,17)+'...' : p.data.name);
+      centerSub.text(p.depth === 0 ? "Click to Zoom Out" : `${p.value} occurrences`);
 
       root.each(d => d.target = {
         x0: Math.max(0, Math.min(1, (d.x0 - p.x0) / (p.x1 - p.x0))) * 2 * Math.PI,

@@ -78,11 +78,16 @@ export default function KnowledgeGraph({ masterData, onSelect }) {
 
     svg.call(zoom);
 
+    // Draw Nodes Scaler (pre-sim for collision)
+    const radiusScale = d3.scaleSqrt().domain([0, d3.max(nodes, d => d.weight)||10]).range([5, 25]);
+    nodes.forEach(n => n.radius = radiusScale(n.weight));
+
     // Graph Simulation
     const simulation = d3.forceSimulation(nodes)
-      .force("link", d3.forceLink(links).id(d => d.id).distance(d => d.type === 'hierarchy' ? 60 : 180))
-      .force("charge", d3.forceManyBody().strength(-300))
-      .force("center", d3.forceCenter(width / 2, height / 2));
+      .force("link", d3.forceLink(links).id(d => d.id).distance(d => d.type === 'hierarchy' ? 80 : 200))
+      .force("charge", d3.forceManyBody().strength(-400))
+      .force("center", d3.forceCenter(width / 2, height / 2))
+      .force("collision", d3.forceCollide().radius(d => d.radius + 40));
 
     // Draw Links
     const link = g.append("g")
@@ -104,11 +109,9 @@ export default function KnowledgeGraph({ masterData, onSelect }) {
       })
       .call(drag(simulation));
 
-    // Draw Nodes
-    const radiusScale = d3.scaleSqrt().domain([0, d3.max(nodes, d => d.weight)||10]).range([5, 25]);
-    
+    // Draw Circle Nodes
     nodeGroup.append("circle")
-      .attr("r", d => radiusScale(d.weight))
+      .attr("r", d => d.radius)
       .attr("fill", d => d.group === 'theme' ? "var(--primary)" : "var(--accent)")
       .attr("stroke", "#fff")
       .attr("stroke-width", 1.5)
